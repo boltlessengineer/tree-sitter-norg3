@@ -1,0 +1,384 @@
+{
+  "name": "norg",
+  "rules": {
+    "document": {
+      "type": "REPEAT",
+      "content": {
+        "type": "SYMBOL",
+        "name": "non_structural"
+      }
+    },
+    "non_structural": {
+      "type": "PREC_RIGHT",
+      "value": 1,
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "paragraph"
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "STRING",
+                "value": "\n"
+              },
+              {
+                "type": "STRING",
+                "value": "\r"
+              },
+              {
+                "type": "STRING",
+                "value": "\r\n"
+              },
+              {
+                "type": "STRING",
+                "value": "\u0000"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "paragraph": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "REPEAT1",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "paragraph_segment"
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "STRING",
+                      "value": "\n"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "\r"
+                    },
+                    {
+                      "type": "STRING",
+                      "value": "\r\n"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "paragraph_segment": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "REPEAT1",
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "_paragraph_element"
+            }
+          ]
+        }
+      }
+    },
+    "_paragraph_element": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "word"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "whitespace"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "link_modifier"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "SYMBOL",
+              "name": "_attached_modifier"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "link_modifier"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "mod_conflict"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "punc"
+        }
+      ]
+    },
+    "_attached_modifier": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "bold"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "italic"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "verbatim"
+        }
+      ]
+    },
+    "mod_conflict": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_bold_open_ch"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_italic_open_ch"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_verbatim_open_ch"
+        }
+      ]
+    },
+    "bold": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_bold_open_ch"
+        },
+        {
+          "type": "PREC_RIGHT",
+          "value": 0,
+          "content": {
+            "type": "REPEAT1",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "_paragraph_element"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "__in_bold"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_bold_close_ch"
+        }
+      ]
+    },
+    "italic": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_italic_open_ch"
+        },
+        {
+          "type": "PREC_RIGHT",
+          "value": 0,
+          "content": {
+            "type": "REPEAT1",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "_paragraph_element"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "__in_italic"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "_italic_close_ch"
+        }
+      ]
+    },
+    "verbatim": {
+      "type": "PREC_DYNAMIC",
+      "value": 5,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "_verbatim_open_ch"
+          },
+          {
+            "type": "PREC_RIGHT",
+            "value": 0,
+            "content": {
+              "type": "REPEAT1",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "word"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "whitespace"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "punc"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "mod_conflict"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "SYMBOL",
+            "name": "_verbatim_close_ch"
+          }
+        ]
+      }
+    }
+  },
+  "extras": [],
+  "conflicts": [
+    [
+      "bold",
+      "mod_conflict"
+    ],
+    [
+      "italic",
+      "mod_conflict"
+    ],
+    [
+      "verbatim",
+      "mod_conflict"
+    ],
+    [
+      "paragraph_segment"
+    ],
+    [
+      "_paragraph_element"
+    ]
+  ],
+  "precedences": [],
+  "externals": [
+    {
+      "type": "SYMBOL",
+      "name": "whitespace"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "word"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_bold_open_ch"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_bold_close_ch"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "__in_bold"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_italic_open_ch"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_italic_close_ch"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "__in_italic"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_verbatim_open_ch"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_verbatim_close_ch"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "__in_verbatim"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "link_modifier"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "punc"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "error_sentinel"
+    }
+  ],
+  "inline": [],
+  "supertypes": [
+    "non_structural"
+  ]
+}
+

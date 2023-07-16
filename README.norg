@@ -1,0 +1,4 @@
+@code bash
+docker build -t norg3 ./
+docker run -v (pwd):/code norg3
+@end
