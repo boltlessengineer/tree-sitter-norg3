@@ -1,3 +1,4 @@
+#include <bitset>
 #include <cwctype>
 #include <iostream>
 #include <algorithm>
@@ -15,27 +16,31 @@ enum TokenType : char {
 
     BOLD_OPEN,
     BOLD_CLOSE,
-    IN_BOLD,
+    // IN_BOLD,
     ITALIC_OPEN,
     ITALIC_CLOSE,
-    IN_ITALIC,
+    // IN_ITALIC,
     VERBATIM_OPEN,
     VERBATIM_CLOSE,
-    IN_VERBATIM,
+    // IN_VERBATIM,
 
     LINK_MODIFIER,
+    ESCAPE_SEQUENCE,
 
     PUNC,
 
-    ERROR_SENTINEL
+    ERROR_SENTINEL,
+
+    COUNT
 };
 
 struct Scanner {
     TSLexer* lexer;
-    const std::unordered_map<int32_t, TokenType> attached_modifier_lookup;
-    Scanner() : attached_modifier_lookup{
+    const std::unordered_map<int32_t, TokenType> attached_modifier_lookup = {
         {'*', BOLD_OPEN},        {'/', ITALIC_OPEN},       {'`', VERBATIM_OPEN},
-    } {}
+    };
+
+    std::bitset<COUNT> active_mods;
 
     TokenType last_token = WHITESPACE;
 
@@ -53,11 +58,26 @@ struct Scanner {
             return true;
         }
 
+        if (valid_symbols[ESCAPE_SEQUENCE] && lexer->lookahead == '\\') {
+            advance();
+            if (lexer->lookahead) {
+                advance();
+                lexer->mark_end(lexer);
+                lexer->result_symbol = last_token = ESCAPE_SEQUENCE;
+                return true;
+            } else {
+                lexer->mark_end(lexer);
+                lexer->result_symbol = last_token = PUNC;
+                return true;
+            }
+        }
+
         if (valid_symbols[LINK_MODIFIER] && lexer->lookahead == ':') {
             advance();
             if (
                 (last_token == WORD && !iswspace(lexer->lookahead))
                 || ((last_token == BOLD_CLOSE || last_token == ITALIC_CLOSE || last_token == VERBATIM_CLOSE)
+                    && lexer->lookahead
                     && !iswspace(lexer->lookahead)
                     && !iswpunct(lexer->lookahead))
             ) {
@@ -81,7 +101,9 @@ struct Scanner {
 
             if (lexer->lookahead == attached_mod->first) {
                 // **
-                advance();
+                do {
+                    advance();
+                } while(lexer->lookahead == attached_mod->first);
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = PUNC;
                 return true;
@@ -95,33 +117,36 @@ struct Scanner {
                         || lexer->lookahead == '\r'
                         || iswpunct(lexer->lookahead))) {
                 // _CLOSE
+                active_mods[attached_mod->second] = false;
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = (TokenType)(attached_mod->second + 1);
                 return true;
             } else if (valid_symbols[attached_mod->second]
-                    && !valid_symbols[attached_mod->second + 2]
+                    // && !valid_symbols[attached_mod->second + 2]
                     && last_token != WORD
+                    && !active_mods[attached_mod->second]
                     && lexer->lookahead
                     && !iswspace(lexer->lookahead)) {
                 // _OPEN
+                active_mods[attached_mod->second] = true;
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = attached_mod->second;
                 return true;
-            } else {
+            } else if (valid_symbols[PUNC]) {
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = PUNC;
                 return true;
             }
         }
         const bool found_punc = lexer->lookahead && iswpunct(lexer->lookahead);
-        if (found_punc) {
+        if (valid_symbols[PUNC] && found_punc) {
             advance();
             lexer->mark_end(lexer);
             lexer->result_symbol = last_token = PUNC;
             return true;
         }
-        if (lexer->lookahead && !iswspace(lexer->lookahead) && !found_punc) {
-            while (!iswspace(lexer->lookahead) && !iswpunct(lexer->lookahead)) {
+        if (valid_symbols[WORD] && lexer->lookahead && !iswspace(lexer->lookahead) && !found_punc) {
+            while (lexer->lookahead && !iswspace(lexer->lookahead) && !iswpunct(lexer->lookahead)) {
                 advance();
             }
             lexer->mark_end(lexer);
@@ -154,6 +179,10 @@ extern "C" {
         Scanner* scanner = static_cast<Scanner*>(payload);
         size_t i = 0;
         buffer[i++] = scanner->last_token;
+        const size_t size = i + scanner->active_mods.size();
+        for(; i < size; ++i) {
+            buffer[i] = scanner->active_mods[i];
+        }
         return i;
     }
 
@@ -161,9 +190,15 @@ extern "C" {
             const char *buffer,
             unsigned length) {
         Scanner* scanner = static_cast<Scanner*>(payload);
+        scanner->last_token = WHITESPACE;
+        scanner->active_mods.reset();
         if (length > 0) {
             size_t i = 0;
             scanner->last_token = (TokenType)buffer[i++];
+            const size_t size = i + scanner->active_mods.size();
+            for(; i < size; ++i) {
+                scanner->active_mods[i] = buffer[i];
+            }
         }
     }
 }

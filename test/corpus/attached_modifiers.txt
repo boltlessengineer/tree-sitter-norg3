@@ -67,7 +67,7 @@ Verbatim precedence
 ================================================================================
 First closing modifier has precedence
 ================================================================================
-*b* n*
+*first bold* some /italic/ and not bold*
 --------------------------------------------------------------------------------
 
 (document
@@ -99,7 +99,6 @@ Intra:*word*:bold
       (bold)
       (link_modifier))))
 
-
 ================================================================================
 Link modifiers with surrounding whitespace
 ================================================================================
@@ -110,3 +109,19 @@ Link modifiers with surrounding whitespace
   (paragraph
     (paragraph_segment
       (bold))))
+
+================================================================================
+Escaped Markup
+================================================================================
+This is not \*bold\*
+This is not \/italic\/
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment
+      (escape_sequence)
+      (escape_sequence))
+    (paragraph_segment
+      (escape_sequence)
+      (escape_sequence))))

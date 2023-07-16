@@ -11,15 +11,13 @@ module.exports = grammar({
 
         $._bold_open_ch,
         $._bold_close_ch,
-        $.__in_bold,
         $._italic_open_ch,
         $._italic_close_ch,
-        $.__in_italic,
         $._verbatim_open_ch,
         $._verbatim_close_ch,
-        $.__in_verbatim,
 
         $.link_modifier,
+        $.escape_sequence,
 
         $.punc,
 
@@ -29,8 +27,8 @@ module.exports = grammar({
         [$.bold, $.mod_conflict],
         [$.italic, $.mod_conflict],
         [$.verbatim, $.mod_conflict],
-        [$.paragraph_segment],
-        [$._paragraph_element],
+        [$._attached_modifier, $.mod_conflict],
+        [$._attached_modifier],
     ],
     inlines: $ => [],
     supertypes: $ => [
@@ -59,27 +57,29 @@ module.exports = grammar({
                 ))
             ),
         _paragraph_element: $ => choice(
-            $.word,
-            $.whitespace,
-            seq(
-                optional($.link_modifier),
-                $._attached_modifier,
-                optional($.link_modifier),
-            ),
-            $.mod_conflict,
-            $.punc,
+            $.escape_sequence,
+            alias($.word, "_word"),
+            alias($.whitespace, "_whitespace"),
+            $._attached_modifier,
+            alias($.mod_conflict, "_word"),
+            alias($.punc, "_word"),
         ),
         _attached_modifier: $ =>
-            choice(
-                $.bold,
-                $.italic,
-                $.verbatim
+            seq(
+                optional($.link_modifier),
+                choice(
+                    $.bold,
+                    $.italic,
+                    $.verbatim
+                ),
+                optional($.link_modifier),
             ),
         mod_conflict: $ =>
             choice(
                 $._bold_open_ch,
                 $._italic_open_ch,
                 $._verbatim_open_ch,
+                $.link_modifier,
             ),
         bold: $ =>
             seq(
@@ -87,7 +87,6 @@ module.exports = grammar({
                 prec.right(0, 
                     repeat1(choice(
                         $._paragraph_element,
-                        $.__in_bold,
                     )),
                 ),
                 $._bold_close_ch,
@@ -98,27 +97,25 @@ module.exports = grammar({
                 prec.right(0, 
                     repeat1(choice(
                         $._paragraph_element,
-                        $.__in_italic,
                     )),
                 ),
                 $._italic_close_ch,
             ),
         verbatim: $ =>
-            prec.dynamic(5,
-                seq(
-                    $._verbatim_open_ch,
-                    prec.right(0,
-                        repeat1(
-                            choice(
-                                $.word,
-                                $.whitespace,
-                                $.punc,
-                                $.mod_conflict
-                            )
-                        ),
+            seq(
+                $._verbatim_open_ch,
+                prec.right(0,
+                    repeat1(
+                        alias(choice(
+                            $.word,
+                            $.whitespace,
+                            $.escape_sequence,
+                            $.punc,
+                            $.mod_conflict
+                        ), "_word")
                     ),
-                    $._verbatim_close_ch,
-                )
+                ),
+                $._verbatim_close_ch,
             )
     },
 });
