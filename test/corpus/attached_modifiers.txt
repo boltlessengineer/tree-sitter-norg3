@@ -125,3 +125,94 @@ This is not \/italic\/
     (paragraph_segment
       (escape_sequence)
       (escape_sequence))))
+
+================================================================================
+Free form Bold
+================================================================================
+Here is some *|free form bold|* markup.
+Here is some *| free form bold|* markup.
+Here is some *|free form bold |* markup.
+Here is some *| free form bold |* markup.
+Here is some *| free form
+bold |* markup.
+*| Extend as *far* as possible |*
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))))
+
+================================================================================
+Deep Nesting
+================================================================================
+*|Bold /italic `verbatim`/|*
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (italic
+          (verbatim))
+        (free_form_close)))))
+
+================================================================================
+Unclosed free form markup
+================================================================================
+*| test one
+
+/| test two
+
+(the spacing is deliberate)
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment))
+  (paragraph
+    (paragraph_segment))
+  (paragraph
+    (paragraph_segment)))
+
+================================================================================
+Closing free form modifier delimiter without surrounding attached modifier
+================================================================================
+*|some|text|*
+/|*some|* text |/
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment
+      (bold
+        (free_form_open)
+        (free_form_close)))
+    (paragraph_segment
+      (italic
+        (free_form_open)
+        (bold)
+        (free_form_close)))))

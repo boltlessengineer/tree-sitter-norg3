@@ -16,28 +16,53 @@ enum TokenType : char {
 
     BOLD_OPEN,
     BOLD_CLOSE,
-    // IN_BOLD,
     ITALIC_OPEN,
     ITALIC_CLOSE,
-    // IN_ITALIC,
+    STRIKETHROUGH_OPEN,
+    STRIKETHROUGH_CLOSE,
+    UNDERLINE_OPEN,
+    UNDERLINE_CLOSE,
+    SPOILER_OPEN,
+    SPOILER_CLOSE,
+    SUPERSCRIPT_OPEN,
+    SUPERSCRIPT_CLOSE,
+    SUBSCRIPT_OPEN,
+    SUBSCRIPT_CLOSE,
+    INLINE_COMMENT_OPEN,
+    INLINE_COMMENT_CLOSE,
     VERBATIM_OPEN,
     VERBATIM_CLOSE,
-    // IN_VERBATIM,
+    INLINE_MATH_OPEN,
+    INLINE_MATH_CLOSE,
+    INLINE_MACRO_OPEN,
+    INLINE_MACRO_CLOSE,
 
+    FREE_FORM_MOD,
+    FREE_FORM_MOD_CLOSE,
     LINK_MODIFIER,
     ESCAPE_SEQUENCE,
 
+    // token for repeated attached modifier which should be parsed as `punc`
     PUNC,
+    SOFT_BREAK,
+    PARA_BREAK,
 
     ERROR_SENTINEL,
 
     COUNT
 };
 
+bool is_token_attached_mod(TokenType token, bool is_close) {
+    return token >= BOLD_OPEN && token < FREE_FORM_MOD && token % 2 == is_close;
+}
+
 struct Scanner {
     TSLexer* lexer;
     const std::unordered_map<int32_t, TokenType> attached_modifier_lookup = {
-        {'*', BOLD_OPEN},        {'/', ITALIC_OPEN},       {'`', VERBATIM_OPEN},
+        {'*', BOLD_OPEN},        {'/', ITALIC_OPEN},       {'-', STRIKETHROUGH_OPEN},
+        {'_', UNDERLINE_OPEN},   {'!', SPOILER_OPEN},      {'`', VERBATIM_OPEN},
+        {'^', SUPERSCRIPT_OPEN}, {',', SUBSCRIPT_OPEN},    {'%', INLINE_COMMENT_OPEN},
+        {'$', INLINE_MATH_OPEN}, {'&', INLINE_MACRO_OPEN},
     };
 
     std::bitset<COUNT> active_mods;
@@ -48,13 +73,29 @@ struct Scanner {
         if (lexer->eof(lexer))
             return false;
 
-        const bool found_whitespace = iswspace(lexer->lookahead) && lexer->lookahead != '\n' && lexer->lookahead != '\r';
-        if (found_whitespace) {
-            while (iswspace(lexer->lookahead) && lexer->lookahead != '\n' && lexer->lookahead != '\r')
+        bool found_whitespace = false;
+        unsigned int newline_count = 0;
+        while (iswspace(lexer->lookahead)) {
+            found_whitespace = true;
+            if (lexer->lookahead == '\n') {
+                newline_count++;
                 advance();
-
+            } else if (lexer->lookahead == '\r') {
+                newline_count++;
+                advance();
+                if (lexer->lookahead == '\n')  advance();
+            } else {
+                advance();
+            }
+        }
+        if (found_whitespace) {
             lexer->mark_end(lexer);
-            lexer->result_symbol = last_token = WHITESPACE;
+            if (newline_count > 1)
+                lexer->result_symbol = last_token = PARA_BREAK;
+            else if (newline_count > 0)
+                lexer->result_symbol = last_token = SOFT_BREAK;
+            else
+                lexer->result_symbol = last_token = WHITESPACE;
             return true;
         }
 
@@ -65,18 +106,37 @@ struct Scanner {
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = ESCAPE_SEQUENCE;
                 return true;
-            } else {
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = PUNC;
-                return true;
             }
+            return false;
+        }
+
+        // yes this is really simple, but I put it here to save the last inline token
+        if (valid_symbols[FREE_FORM_MOD_CLOSE] && lexer->lookahead == '|') {
+            advance();
+            lexer->mark_end(lexer);
+            const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
+            if (attached_mod != attached_modifier_lookup.end() && active_mods[attached_mod->second])
+                lexer->result_symbol = last_token = FREE_FORM_MOD_CLOSE;
+            else
+                lexer->result_symbol = last_token = PUNC;
+            return true;
+        }
+        if (valid_symbols[FREE_FORM_MOD] && lexer->lookahead == '|') {
+            advance();
+            lexer->mark_end(lexer);
+            if (is_token_attached_mod(last_token, false))
+                lexer->result_symbol = last_token = FREE_FORM_MOD;
+            else
+                lexer->result_symbol = last_token = PUNC;
+            return true;
         }
 
         if (valid_symbols[LINK_MODIFIER] && lexer->lookahead == ':') {
             advance();
             if (
                 (last_token == WORD && !iswspace(lexer->lookahead))
-                || ((last_token == BOLD_CLOSE || last_token == ITALIC_CLOSE || last_token == VERBATIM_CLOSE)
+                // HACK: this is definitely not a good way. I know
+                || (is_token_attached_mod(last_token, true)
                     && lexer->lookahead
                     && !iswspace(lexer->lookahead)
                     && !iswpunct(lexer->lookahead))
@@ -84,11 +144,8 @@ struct Scanner {
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = LINK_MODIFIER;
                 return true;
-            } else {
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = PUNC;
-                return true;
             }
+            return false;
         }
 
         const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
@@ -137,14 +194,9 @@ struct Scanner {
                 lexer->result_symbol = last_token = PUNC;
                 return true;
             }
+            return false;
         }
         const bool found_punc = lexer->lookahead && iswpunct(lexer->lookahead);
-        if (valid_symbols[PUNC] && found_punc) {
-            advance();
-            lexer->mark_end(lexer);
-            lexer->result_symbol = last_token = PUNC;
-            return true;
-        }
         if (valid_symbols[WORD] && lexer->lookahead && !iswspace(lexer->lookahead) && !found_punc) {
             while (lexer->lookahead && !iswspace(lexer->lookahead) && !iswpunct(lexer->lookahead)) {
                 advance();
