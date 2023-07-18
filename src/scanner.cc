@@ -37,7 +37,7 @@ enum TokenType : char {
     INLINE_MACRO_OPEN,
     INLINE_MACRO_CLOSE,
 
-    FREE_FORM_MOD,
+    FREE_FORM_MOD_OPEN,
     FREE_FORM_MOD_CLOSE,
     LINK_MODIFIER,
     ESCAPE_SEQUENCE,
@@ -53,7 +53,7 @@ enum TokenType : char {
 };
 
 bool is_token_attached_mod(TokenType token, bool is_close) {
-    return token >= BOLD_OPEN && token < FREE_FORM_MOD && token % 2 == is_close;
+    return token >= BOLD_OPEN && token < FREE_FORM_MOD_OPEN && token % 2 == is_close;
 }
 
 struct Scanner {
@@ -66,6 +66,7 @@ struct Scanner {
     };
 
     std::bitset<COUNT> active_mods;
+    std::bitset<COUNT> free_active_mods;
 
     TokenType last_token = WHITESPACE;
 
@@ -110,24 +111,24 @@ struct Scanner {
             return false;
         }
 
-        // yes this is really simple, but I put it here to save the last inline token
+        if (valid_symbols[FREE_FORM_MOD_OPEN] && lexer->lookahead == '|' && is_token_attached_mod(last_token, false) && active_mods[last_token]) {
+            free_active_mods[last_token] = true;
+            advance();
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = FREE_FORM_MOD_OPEN;
+            return true;
+        }
         if (valid_symbols[FREE_FORM_MOD_CLOSE] && lexer->lookahead == '|') {
             advance();
             lexer->mark_end(lexer);
             const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
-            if (attached_mod != attached_modifier_lookup.end() && active_mods[attached_mod->second])
+            if (attached_mod != attached_modifier_lookup.end() && free_active_mods[attached_mod->second]) {
+                free_active_mods[last_token] = false;
                 lexer->result_symbol = last_token = FREE_FORM_MOD_CLOSE;
-            else
+            }
+            else {
                 lexer->result_symbol = last_token = PUNC;
-            return true;
-        }
-        if (valid_symbols[FREE_FORM_MOD] && lexer->lookahead == '|') {
-            advance();
-            lexer->mark_end(lexer);
-            if (is_token_attached_mod(last_token, false))
-                lexer->result_symbol = last_token = FREE_FORM_MOD;
-            else
-                lexer->result_symbol = last_token = PUNC;
+            }
             return true;
         }
 
@@ -135,7 +136,6 @@ struct Scanner {
             advance();
             if (
                 (last_token == WORD && !iswspace(lexer->lookahead))
-                // HACK: this is definitely not a good way. I know
                 || (is_token_attached_mod(last_token, true)
                     && lexer->lookahead
                     && !iswspace(lexer->lookahead)
@@ -150,7 +150,9 @@ struct Scanner {
 
         const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
         if (attached_mod != attached_modifier_lookup.end()) {
-            if (!valid_symbols[attached_mod->second] && !valid_symbols[attached_mod->second + 1]) 
+            const TokenType OPEN_MOD = attached_mod->second;
+            const TokenType CLOSE_MOD = (TokenType)(OPEN_MOD + 1);
+            if (!valid_symbols[OPEN_MOD] && !valid_symbols[CLOSE_MOD]) 
                 // no valid attached modifier in current state
                 return false;
 
@@ -166,7 +168,7 @@ struct Scanner {
                 return true;
             }
 
-            if (valid_symbols[attached_mod->second + 1]
+            if (valid_symbols[CLOSE_MOD]
                     && last_token != WHITESPACE
                     && (!lexer->lookahead
                         || iswspace(lexer->lookahead)
@@ -176,10 +178,9 @@ struct Scanner {
                 // _CLOSE
                 active_mods[attached_mod->second] = false;
                 lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = (TokenType)(attached_mod->second + 1);
+                lexer->result_symbol = last_token = CLOSE_MOD;
                 return true;
-            } else if (valid_symbols[attached_mod->second]
-                    // && !valid_symbols[attached_mod->second + 2]
+            } else if (valid_symbols[OPEN_MOD]
                     && last_token != WORD
                     && !active_mods[attached_mod->second]
                     && lexer->lookahead
@@ -187,7 +188,7 @@ struct Scanner {
                 // _OPEN
                 active_mods[attached_mod->second] = true;
                 lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = attached_mod->second;
+                lexer->result_symbol = last_token = OPEN_MOD;
                 return true;
             } else if (valid_symbols[PUNC]) {
                 lexer->mark_end(lexer);

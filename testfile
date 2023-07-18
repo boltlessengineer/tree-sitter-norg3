@@ -1,1 +1,4 @@
-*|Bold /|italic|/|*
+`|,|not free form subscripted|,|`
+`|%|not free form inline comment|%|`
+`|$|not free form inline math|$|`
+`|&|not free form inline macro|&|`
