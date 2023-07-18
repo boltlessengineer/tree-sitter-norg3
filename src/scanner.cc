@@ -16,29 +16,33 @@ enum TokenType : char {
 
     BOLD_OPEN,
     BOLD_CLOSE,
-    ITALIC_OPEN,
-    ITALIC_CLOSE,
-    STRIKETHROUGH_OPEN,
-    STRIKETHROUGH_CLOSE,
-    UNDERLINE_OPEN,
-    UNDERLINE_CLOSE,
-    SPOILER_OPEN,
-    SPOILER_CLOSE,
-    SUPERSCRIPT_OPEN,
-    SUPERSCRIPT_CLOSE,
-    SUBSCRIPT_OPEN,
-    SUBSCRIPT_CLOSE,
-    INLINE_COMMENT_OPEN,
-    INLINE_COMMENT_CLOSE,
+    FREE_BOLD_OPEN,
+    FREE_BOLD_CLOSE,
+    // ITALIC_OPEN,
+    // ITALIC_CLOSE,
+    // STRIKETHROUGH_OPEN,
+    // STRIKETHROUGH_CLOSE,
+    // UNDERLINE_OPEN,
+    // UNDERLINE_CLOSE,
+    // SPOILER_OPEN,
+    // SPOILER_CLOSE,
+    // SUPERSCRIPT_OPEN,
+    // SUPERSCRIPT_CLOSE,
+    // SUBSCRIPT_OPEN,
+    // SUBSCRIPT_CLOSE,
+    // INLINE_COMMENT_OPEN,
+    // INLINE_COMMENT_CLOSE,
     VERBATIM_OPEN,
     VERBATIM_CLOSE,
-    INLINE_MATH_OPEN,
-    INLINE_MATH_CLOSE,
-    INLINE_MACRO_OPEN,
-    INLINE_MACRO_CLOSE,
+    FREE_VERBATIM_OPEN,
+    FREE_VERBATIM_CLOSE,
+    // INLINE_MATH_OPEN,
+    // INLINE_MATH_CLOSE,
+    // INLINE_MACRO_OPEN,
+    // INLINE_MACRO_CLOSE,
 
-    FREE_FORM_MOD_OPEN,
-    FREE_FORM_MOD_CLOSE,
+    // FREE_FORM_MOD_OPEN,
+    // FREE_FORM_MOD_CLOSE,
     LINK_MODIFIER,
     ESCAPE_SEQUENCE,
 
@@ -53,20 +57,20 @@ enum TokenType : char {
 };
 
 bool is_token_attached_mod(TokenType token, bool is_close) {
-    return token >= BOLD_OPEN && token < FREE_FORM_MOD_OPEN && token % 2 == is_close;
+    return token >= BOLD_OPEN && token < LINK_MODIFIER && token % 2 == is_close;
 }
 
 struct Scanner {
     TSLexer* lexer;
     const std::unordered_map<int32_t, TokenType> attached_modifier_lookup = {
-        {'*', BOLD_OPEN},        {'/', ITALIC_OPEN},       {'-', STRIKETHROUGH_OPEN},
-        {'_', UNDERLINE_OPEN},   {'!', SPOILER_OPEN},      {'`', VERBATIM_OPEN},
-        {'^', SUPERSCRIPT_OPEN}, {',', SUBSCRIPT_OPEN},    {'%', INLINE_COMMENT_OPEN},
-        {'$', INLINE_MATH_OPEN}, {'&', INLINE_MACRO_OPEN},
+        {'*', BOLD_OPEN}, //       {'/', ITALIC_OPEN},       {'-', STRIKETHROUGH_OPEN},
+        // {'_', UNDERLINE_OPEN},   {'!', SPOILER_OPEN},
+        {'`', VERBATIM_OPEN},
+        // {'^', SUPERSCRIPT_OPEN}, {',', SUBSCRIPT_OPEN},    {'%', INLINE_COMMENT_OPEN},
+        // {'$', INLINE_MATH_OPEN}, {'&', INLINE_MACRO_OPEN},
     };
 
     std::bitset<COUNT> active_mods;
-    std::bitset<COUNT> free_active_mods;
 
     TokenType last_token = WHITESPACE;
 
@@ -111,27 +115,6 @@ struct Scanner {
             return false;
         }
 
-        if (valid_symbols[FREE_FORM_MOD_OPEN] && lexer->lookahead == '|' && is_token_attached_mod(last_token, false) && active_mods[last_token]) {
-            free_active_mods[last_token] = true;
-            advance();
-            lexer->mark_end(lexer);
-            lexer->result_symbol = last_token = FREE_FORM_MOD_OPEN;
-            return true;
-        }
-        if (valid_symbols[FREE_FORM_MOD_CLOSE] && lexer->lookahead == '|') {
-            advance();
-            lexer->mark_end(lexer);
-            const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
-            if (attached_mod != attached_modifier_lookup.end() && free_active_mods[attached_mod->second]) {
-                free_active_mods[last_token] = false;
-                lexer->result_symbol = last_token = FREE_FORM_MOD_CLOSE;
-            }
-            else {
-                lexer->result_symbol = last_token = PUNC;
-            }
-            return true;
-        }
-
         if (valid_symbols[LINK_MODIFIER] && lexer->lookahead == ':') {
             advance();
             if (
@@ -149,9 +132,28 @@ struct Scanner {
         }
 
         const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
-        if (attached_mod != attached_modifier_lookup.end()) {
+        if (lexer->lookahead == '|') {
+            advance();
+            const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
+            if (attached_mod != attached_modifier_lookup.end()) {
+                const TokenType FREE_CLOSE_MOD = (TokenType)(attached_mod->second + 3);
+                advance();
+                if (valid_symbols[FREE_CLOSE_MOD]
+                    && (!lexer->lookahead
+                        || iswspace(lexer->lookahead)
+                        || lexer->lookahead == '\n'
+                        || lexer->lookahead == '\r'
+                        || iswpunct(lexer->lookahead))) {
+                    active_mods[attached_mod->second] = false;
+                    lexer->mark_end(lexer);
+                    lexer->result_symbol = last_token = FREE_CLOSE_MOD;
+                    return true;
+                }
+            }
+        } else if (attached_mod != attached_modifier_lookup.end()) {
             const TokenType OPEN_MOD = attached_mod->second;
             const TokenType CLOSE_MOD = (TokenType)(OPEN_MOD + 1);
+            const TokenType FREE_OPEN_MOD = (TokenType)(OPEN_MOD + 2);
             if (!valid_symbols[OPEN_MOD] && !valid_symbols[CLOSE_MOD]) 
                 // no valid attached modifier in current state
                 return false;
@@ -168,7 +170,16 @@ struct Scanner {
                 return true;
             }
 
-            if (valid_symbols[CLOSE_MOD]
+            if (valid_symbols[FREE_OPEN_MOD]
+                    && !active_mods[attached_mod->second]
+                    && lexer->lookahead == '|') {
+                // _FREE_OPEN
+                active_mods[attached_mod->second] = true;
+                // free_active_mods[attached_mod->second] = true;
+                lexer->mark_end(lexer);
+                lexer->result_symbol = last_token = FREE_OPEN_MOD;
+                return true;
+            } else if (valid_symbols[CLOSE_MOD]
                     && last_token != WHITESPACE
                     && (!lexer->lookahead
                         || iswspace(lexer->lookahead)
