@@ -55,8 +55,6 @@ module.exports = grammar({
         $.free_inline_macro_open,
         $.free_inline_macro_close,
 
-        // $.free_form_mod_open,
-        // $.free_form_mod_close,
         $.link_modifier,
         $.escape_sequence_prefix,
 
@@ -93,7 +91,7 @@ module.exports = grammar({
             $.paragraph,
             alias($.para_break, "_para_break"),
         )),
-        paragraph: ($) => prec.right(0, seq(
+        paragraph: $ => prec.right(seq(
             repeat1(
                 choice(
                     $.paragraph_segment,
@@ -101,42 +99,43 @@ module.exports = grammar({
                 )
             ),
         )),
-        paragraph_segment: $ =>
-            prec.right(0, 
-                repeat1(choice(
-                    $._paragraph_element,
-                ))
+        paragraph_segment: $ => prec.right(repeat1(
+            choice(
+                $._paragraph_element,
+            )
+        )),
+        _paragraph_element: $ =>
+            choice(
+                $.escape_sequence,
+                alias($.word, "_word"),
+                alias($.whitespace, "_whitespace"),
+                alias($.punc, "_word"),
+                alias($.mod_conflict, "_word"),
+                // $.punc,
+                // $.mod_conflict,
+                $._attached_modifier,
             ),
-        _paragraph_element: $ => choice(
-            $.escape_sequence,
-            alias($.word, "_word"),
-            alias($.whitespace, "_whitespace"),
-            alias($.punc, "_word"),
-            alias($.mod_conflict, "_word"),
-            // $.punc,
-            // $.mod_conflict,
-            $._attached_modifier,
-        ),
-        escape_sequence: $ => seq(
-            $.escape_sequence_prefix,
-            field(
-                "token",
-                // TODO: what if \r\n?
-                alias(/.|\n/, $.any_char),
+        escape_sequence: $ =>
+            seq(
+                $.escape_sequence_prefix,
+                field(
+                    "token",
+                    alias(choice(/./, newline), $.any_char),
+                ),
             ),
-        ),
-        punc: $ => choice(
-            $._punc_ch,
-            ".",
-            ",",
-            "<",
-            ">",
-            "(",
-            ")",
-            "\\",
-            ":",
-            "|"
-        ),
+        punc: $ =>
+            choice(
+                $._punc_ch,
+                ".",
+                ",",
+                "<",
+                ">",
+                "(",
+                ")",
+                "\\",
+                ":",
+                "|"
+            ),
         _attached_mod_content: $ =>
             prec.right(
                 repeat1(
@@ -219,7 +218,6 @@ module.exports = grammar({
                 $.free_inline_math_open,
                 $.free_inline_macro_open,
                 $.link_modifier,
-                // $.free_form_mod_open,
             ),
             "_punc"),
         bold: $ => gen_attached_modifier($, "bold", false),
