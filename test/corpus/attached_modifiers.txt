@@ -760,3 +760,90 @@ First closing modifier has precedence
     (paragraph_segment
       (bold)
       (italic))))
+
+================================================================================
+Plain text URL should not contain link modifier
+================================================================================
+https://github.com/nvim-neorg/neorg
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment)))
+
+================================================================================
+Although the above is true, we still want to be able to do this:
+================================================================================
+You may want to stress the *begin*:ning of a word.
+Or the end in some:/thing/.
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment
+      (bold)
+      (link_modifier))
+    (paragraph_segment
+      (link_modifier)
+      (italic))))
+
+================================================================================
+Link modifiers with incomplete markup
+================================================================================
+text:`verbatim`text
+
+text`verbatim`:text
+
+text `verbatim:text
+
+text verbatim`:text
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment))
+  (paragraph
+    (paragraph_segment))
+  (paragraph
+    (paragraph_segment))
+  (paragraph
+    (paragraph_segment)))
+
+================================================================================
+Repeated attached modifiers should be treated as raw text
+================================================================================
+^^, text, ^^
+%%text%%
+%%%text%%%
+*///example//*
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment)
+    (paragraph_segment)
+    (paragraph_segment)
+    (paragraph_segment
+      (bold))))
+
+================================================================================
+Link modifiers with surrounding whitespace
+================================================================================
+:*text*:
+text:*more text*:text
+`some text`: text
+text :*more text*
+--------------------------------------------------------------------------------
+
+(document
+  (paragraph
+    (paragraph_segment
+      (bold))
+    (paragraph_segment
+      (link_modifier)
+      (bold)
+      (link_modifier))
+    (paragraph_segment
+      (verbatim))
+    (paragraph_segment
+      (bold))))

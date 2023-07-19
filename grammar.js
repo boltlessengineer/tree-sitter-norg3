@@ -121,8 +121,8 @@ module.exports = grammar({
             $.escape_sequence_prefix,
             field(
                 "token",
-                // TODO: check if working with newline too
-                alias(/./, $.any_char),
+                // TODO: what if \r\n?
+                alias(/.|\n/, $.any_char),
             ),
         ),
         punc: $ => choice(

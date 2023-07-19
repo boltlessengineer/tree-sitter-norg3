@@ -93,6 +93,17 @@ struct Scanner {
         if (lexer->eof(lexer))
             return false;
 
+        // ESCAPE SEQUENCE
+        if (valid_symbols[ESCAPE_SEQUENCE] && lexer->lookahead == '\\') {
+            advance();
+            if (lexer->lookahead) {
+                lexer->mark_end(lexer);
+                lexer->result_symbol = last_token = ESCAPE_SEQUENCE;
+                return true;
+            }
+            return false;
+        }
+
         bool found_whitespace = false;
         unsigned int newline_count = 0;
         while (iswspace(lexer->lookahead)) {
@@ -117,16 +128,6 @@ struct Scanner {
             else
                 lexer->result_symbol = last_token = WHITESPACE;
             return true;
-        }
-
-        if (valid_symbols[ESCAPE_SEQUENCE] && lexer->lookahead == '\\') {
-            advance();
-            if (lexer->lookahead) {
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = ESCAPE_SEQUENCE;
-                return true;
-            }
-            return false;
         }
 
         if (valid_symbols[LINK_MODIFIER] && lexer->lookahead == ':') {

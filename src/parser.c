@@ -2440,12 +2440,27 @@ static const TSStateId ts_primary_state_ids[STATE_COUNT] = {
   [1712] = 1338,
 };
 
+static inline bool aux_sym_escape_sequence_token1_character_set_1(int32_t c) {
+  return (c < ':'
+    ? (c < ','
+      ? (c < '('
+        ? c == 0
+        : c <= ')')
+      : (c <= ',' || c == '.'))
+    : (c <= ':' || (c < '\\'
+      ? (c < '>'
+        ? c == '<'
+        : c <= '>')
+      : (c <= '\\' || c == '|'))));
+}
+
 static bool ts_lex(TSLexer *lexer, TSStateId state) {
   START_LEXER();
   eof = lexer->eof(lexer);
   switch (state) {
     case 0:
       if (eof) ADVANCE(2);
+      if (!aux_sym_escape_sequence_token1_character_set_1(lookahead)) ADVANCE(3);
       if (lookahead == '(') ADVANCE(8);
       if (lookahead == ')') ADVANCE(9);
       if (lookahead == ',') ADVANCE(5);
@@ -2455,12 +2470,9 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
       if (lookahead == '>') ADVANCE(7);
       if (lookahead == '\\') ADVANCE(10);
       if (lookahead == '|') ADVANCE(12);
-      if (lookahead != 0 &&
-          lookahead != '\n') ADVANCE(3);
       END_STATE();
     case 1:
-      if (lookahead != 0 &&
-          lookahead != '\n') ADVANCE(3);
+      if (lookahead != 0) ADVANCE(3);
       END_STATE();
     case 2:
       ACCEPT_TOKEN(ts_builtin_sym_end);
