@@ -11,10 +11,7 @@ module.exports = grammar({
     externals: $ => [
         // handle whitespace, word, _open/_close inline mods ourselves to check preceding word character
         $._whitespace,
-        $._soft_break,
-        $._para_break,
         $.word,
-        $._punc_ch,
 
         $.bold_open,
         $.bold_close,
@@ -64,7 +61,7 @@ module.exports = grammar({
         $.link_modifier,
         $.escape_sequence_prefix,
 
-        $.detached,
+        $._punc_end,
 
         $.error_sentinel,
     ],
@@ -91,26 +88,24 @@ module.exports = grammar({
         document: $ => repeat(
             choice(
                 $.non_structural,
-                // $.heading,
+                $.heading,
+                newline_or_eof,
             )
         ),
         non_structural: $ => prec.right(1, choice(
             $.paragraph,
-            $._para_break,
         )),
         paragraph: $ => prec.right(seq(
-            repeat1(
-                choice(
+            $.paragraph_segment,
+            repeat(
+                seq(
+                    newline,
                     $.paragraph_segment,
-                    $._soft_break,
                 )
             ),
+            newline_or_eof,
         )),
-        paragraph_segment: $ => prec.right(repeat1(
-            choice(
-                $._paragraph_element,
-            )
-        )),
+        paragraph_segment: $ => repeat1($._paragraph_element),
         _paragraph_element: $ =>
             choice(
                 $.escape_sequence,
@@ -118,16 +113,17 @@ module.exports = grammar({
                 $._whitespace,
                 alias($.punc, "_word"),
                 alias($.mod_conflict, "_word"),
-                // $.punc,
-                // $.mod_conflict,
                 $._attached_modifier,
             ),
-        // heading: $ =>
-        //     seq(
-        //         "*",
-        //         $._whitespace,
-        //         $.paragraph_segment,
-        //     ),
+        heading: $ =>
+            prec(2,
+                seq(
+                    prec.dynamic(3, alias("*", $.heading_mod)),
+                    $._whitespace,
+                    $.paragraph_segment,
+                    newline_or_eof,
+                ),
+            ),
         escape_sequence: $ =>
             seq(
                 $.escape_sequence_prefix,
@@ -136,14 +132,21 @@ module.exports = grammar({
                     alias(choice(/./, newline), $.any_char),
                 ),
             ),
-        // TODO: handle PUNC in grammar.js. to have higher lexer precedence for headings
-        punc: $ =>
-            // $._punc_ch,
+        punc: $ => seq(
             choice(
-                $._punc_ch,
-                "*",
+                // combine all repeated token to ignore repeated attached modifiers
+                token(prec.right(repeat1("*"))),
+                token(prec.right(repeat1("/"))),
+                token(prec.right(repeat1("-"))),
+                token(prec.right(repeat1("_"))),
+                token(prec.right(repeat1("!"))),
+                token(prec.right(repeat1("`"))),
+                token(prec.right(repeat1("^"))),
+                token(prec.right(repeat1(","))),
+                token(prec.right(repeat1("%"))),
+                token(prec.right(repeat1("$"))),
+                token(prec.right(repeat1("&"))),
                 ".",
-                ",",
                 "<",
                 ">",
                 "(",
@@ -152,45 +155,48 @@ module.exports = grammar({
                 ":",
                 "|"
             ),
+            optional($._punc_end)
+        ),
         _attached_mod_content: $ =>
-            prec.right(
-                repeat1(
-                    choice(
-                        $._paragraph_element,
-                        $._soft_break,
-                    ),
-                )
+            prec.right(seq(
+                repeat1($._paragraph_element),
+                repeat(
+                    seq(
+                        newline,
+                        repeat1($._paragraph_element),
+                    )
+                ),
+            )),
+        _verbatim_paragraph_element: $ =>
+            choice(
+                $.escape_sequence,
+                alias($.word, "_word"),
+                $._whitespace,
+                alias($.punc, "_word"),
+                alias($.mod_conflict, "_word"),
             ),
         _verbatim_paragraph_content: $ =>
-            prec.right(
-                repeat1(
-                    choice(
-                        $.escape_sequence,
-                        alias($.word, "_word"),
-                        $._whitespace,
-                        alias($.punc, "_word"),
-                        alias($.mod_conflict, "_word"),
-                        // $.punc,
-                        // $.mod_conflict,
-                        $._soft_break,
-                    ),
-                ),
-            ),
+            prec.right(seq(
+                repeat1($._verbatim_paragraph_element),
+                repeat(
+                    seq(
+                        newline,
+                        repeat1($._verbatim_paragraph_element),
+                    )
+                )
+            )),
         _free_form_verbatim_mod_content: $ =>
             prec.right(
                 repeat1(
                     choice(
                         choice(
-                            $.escape_sequence,
+                            // $.escape_sequence,
                             alias($.word, "_word"),
                             $._whitespace,
                             alias($.punc, "_word"),
                             alias($.mod_conflict, "_word"),
-                            // $.punc,
-                            // $.mod_conflict,
                         ),
-                        $._soft_break,
-                        prec(1, alias($.escape_sequence_prefix, "_word")),
+                        newline,
                     )
                 )
             ),
@@ -214,31 +220,31 @@ module.exports = grammar({
             ),
         mod_conflict: $ =>
             alias(
-            choice(
-                $.bold_open,
-                $.italic_open,
-                $.strikethrough_open,
-                $.underline_open,
-                $.spoiler_open,
-                $.superscript_open,
-                $.subscript_open,
-                $.inline_comment_open,
-                $.verbatim_open,
-                $.inline_math_open,
-                $.inline_macro_open,
-                $.free_bold_open,
-                $.free_italic_open,
-                $.free_strikethrough_open,
-                $.free_underline_open,
-                $.free_spoiler_open,
-                $.free_superscript_open,
-                $.free_subscript_open,
-                $.free_inline_comment_open,
-                $.free_verbatim_open,
-                $.free_inline_math_open,
-                $.free_inline_macro_open,
-                $.link_modifier,
-            ),
+                choice(
+                    $.bold_open,
+                    $.italic_open,
+                    $.strikethrough_open,
+                    $.underline_open,
+                    $.spoiler_open,
+                    $.superscript_open,
+                    $.subscript_open,
+                    $.inline_comment_open,
+                    $.verbatim_open,
+                    $.inline_math_open,
+                    $.inline_macro_open,
+                    $.free_bold_open,
+                    $.free_italic_open,
+                    $.free_strikethrough_open,
+                    $.free_underline_open,
+                    $.free_spoiler_open,
+                    $.free_superscript_open,
+                    $.free_subscript_open,
+                    $.free_inline_comment_open,
+                    $.free_verbatim_open,
+                    $.free_inline_math_open,
+                    $.free_inline_macro_open,
+                    $.link_modifier,
+                ),
             "_punc"),
         bold: $ => gen_attached_modifier($, "bold", false),
         italic: $ => gen_attached_modifier($, "italic", false),
@@ -259,10 +265,6 @@ function gen_attached_modifier($, kind, verbatim) {
     let close = alias($[kind + "_close"], "_close");
     let free_open = alias($["free_" + kind + "_open"], $.free_form_open);
     let free_close = alias($["free_" + kind + "_close"], $.free_form_close);
-    // let open = $[kind + "_open"];
-    // let close = $[kind + "_close"];
-    // let free_open = $["free_" + kind + "_open"];
-    // let free_close = $["free_" + kind + "_close"];
     let content = $._attached_mod_content;
     let free_form_content = $._attached_mod_content;
     let precedence = 2;
@@ -273,9 +275,9 @@ function gen_attached_modifier($, kind, verbatim) {
         precedence = 5;
     }
     return choice(
-        prec.dynamic(precedence + 2, seq(
+        prec.dynamic(precedence + 1, seq(
             free_open,
-            prec.dynamic(precedence + 1, free_form_content),
+            free_form_content,
             free_close,
         )),
         prec.dynamic(precedence, seq(

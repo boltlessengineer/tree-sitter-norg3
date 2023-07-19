@@ -12,11 +12,7 @@ using namespace std;
 
 enum TokenType : char {
     WHITESPACE,
-    // token for repeated attached modifier which should be parsed as `punc`
-    SOFT_BREAK,
-    PARA_BREAK,
     WORD,
-    PUNC,
 
     BOLD_OPEN,
     BOLD_CLOSE,
@@ -66,7 +62,7 @@ enum TokenType : char {
     LINK_MODIFIER,
     ESCAPE_SEQUENCE,
 
-    DETACHED,
+    PUNC_END,
 
     ERROR_SENTINEL,
 
@@ -95,6 +91,15 @@ struct Scanner {
         if (lexer->eof(lexer))
             return false;
 
+        if (lexer->get_column(lexer) == 0)
+            last_token = WHITESPACE;
+
+        if (valid_symbols[PUNC_END] && last_token != PUNC_END) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = PUNC_END;
+            return true;
+        }
+
         // ESCAPE SEQUENCE
         if (valid_symbols[ESCAPE_SEQUENCE] && lexer->lookahead == '\\') {
             advance();
@@ -106,27 +111,12 @@ struct Scanner {
             return false;
         }
         // WHITESPACE
-        if (iswspace(lexer->lookahead)) {
-            unsigned int newline_count = 0;
+        if (iswblank(lexer->lookahead)) {
             do {
-                if (lexer->lookahead == '\n') {
-                    newline_count++;
-                    advance();
-                } else if (lexer->lookahead == '\r') {
-                    newline_count++;
-                    advance();
-                    if (lexer->lookahead == '\n')  advance();
-                } else {
-                    advance();
-                }
-            } while (iswspace(lexer->lookahead));
+                advance();
+            } while (iswblank(lexer->lookahead));
             lexer->mark_end(lexer);
-            if (newline_count > 1)
-                lexer->result_symbol = last_token = PARA_BREAK;
-            else if (newline_count > 0)
-                lexer->result_symbol = last_token = SOFT_BREAK;
-            else
-                lexer->result_symbol = last_token = WHITESPACE;
+            lexer->result_symbol = last_token = WHITESPACE;
             return true;
         }
 
@@ -142,15 +132,13 @@ struct Scanner {
                 lexer->result_symbol = last_token = LINK_MODIFIER;
                 return true;
             } else {
-                lexer->result_symbol = last_token = PUNC;
-                return true;
+                return false;
             }
         }
 
         const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
         if (lexer->lookahead == '|') {
             advance();
-            lexer->mark_end(lexer);
             const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
             if (attached_mod != attached_modifier_lookup.end()) {
                 const TokenType FREE_CLOSE_MOD = (TokenType)(attached_mod->second + 3);
@@ -167,8 +155,7 @@ struct Scanner {
                     return true;
                 }
             }
-            lexer->result_symbol = last_token = PUNC;
-            return true;
+            return false;
         } else if (attached_mod != attached_modifier_lookup.end()) {
             const TokenType OPEN_MOD = attached_mod->second;
             const TokenType CLOSE_MOD = (TokenType)(OPEN_MOD + 1);
@@ -181,12 +168,7 @@ struct Scanner {
 
             if (lexer->lookahead == attached_mod->first) {
                 // **
-                do {
-                    advance();
-                } while(lexer->lookahead == attached_mod->first);
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = PUNC;
-                return true;
+                return false;
             }
 
             if (valid_symbols[FREE_OPEN_MOD]
@@ -220,11 +202,6 @@ struct Scanner {
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = OPEN_MOD;
                 return true;
-            } else if (valid_symbols[PUNC]) {
-                // return PUNC for fail_close or fail_open
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = PUNC;
-                return true;
             }
             return false;
         }
@@ -237,14 +214,6 @@ struct Scanner {
             }
             lexer->mark_end(lexer);
             lexer->result_symbol = last_token = WORD;
-            return true;
-        }
-
-        // PUNC
-        if (valid_symbols[PUNC] && found_punc) {
-            advance();
-            lexer->mark_end(lexer);
-            lexer->result_symbol = last_token = PUNC;
             return true;
         }
         return false;
