@@ -12,7 +12,11 @@ using namespace std;
 
 enum TokenType : char {
     WHITESPACE,
+    // token for repeated attached modifier which should be parsed as `punc`
+    SOFT_BREAK,
+    PARA_BREAK,
     WORD,
+    PUNC,
 
     BOLD_OPEN,
     BOLD_CLOSE,
@@ -62,10 +66,7 @@ enum TokenType : char {
     LINK_MODIFIER,
     ESCAPE_SEQUENCE,
 
-    // token for repeated attached modifier which should be parsed as `punc`
-    PUNC,
-    SOFT_BREAK,
-    PARA_BREAK,
+    DETACHED,
 
     ERROR_SENTINEL,
 
@@ -73,7 +74,7 @@ enum TokenType : char {
 };
 
 bool is_token_attached_mod(TokenType token, bool is_close) {
-    return token >= BOLD_OPEN && token < LINK_MODIFIER && token % 2 == is_close;
+    return token >= BOLD_OPEN && token < LINK_MODIFIER && ((token % 2 == BOLD_CLOSE % 2) == is_close);
 }
 
 struct Scanner {
@@ -85,6 +86,7 @@ struct Scanner {
         {'$', INLINE_MATH_OPEN}, {'&', INLINE_MACRO_OPEN},
     };
 
+    // HACK: fix this to use less space
     std::bitset<COUNT> active_mods;
 
     TokenType last_token = WHITESPACE;
@@ -103,23 +105,21 @@ struct Scanner {
             }
             return false;
         }
-
-        bool found_whitespace = false;
-        unsigned int newline_count = 0;
-        while (iswspace(lexer->lookahead)) {
-            found_whitespace = true;
-            if (lexer->lookahead == '\n') {
-                newline_count++;
-                advance();
-            } else if (lexer->lookahead == '\r') {
-                newline_count++;
-                advance();
-                if (lexer->lookahead == '\n')  advance();
-            } else {
-                advance();
-            }
-        }
-        if (found_whitespace) {
+        // WHITESPACE
+        if (iswspace(lexer->lookahead)) {
+            unsigned int newline_count = 0;
+            do {
+                if (lexer->lookahead == '\n') {
+                    newline_count++;
+                    advance();
+                } else if (lexer->lookahead == '\r') {
+                    newline_count++;
+                    advance();
+                    if (lexer->lookahead == '\n')  advance();
+                } else {
+                    advance();
+                }
+            } while (iswspace(lexer->lookahead));
             lexer->mark_end(lexer);
             if (newline_count > 1)
                 lexer->result_symbol = last_token = PARA_BREAK;
@@ -132,23 +132,25 @@ struct Scanner {
 
         if (valid_symbols[LINK_MODIFIER] && lexer->lookahead == ':') {
             advance();
+            lexer->mark_end(lexer);
             if (
                 (last_token == WORD && !iswspace(lexer->lookahead))
                 || (is_token_attached_mod(last_token, true)
                     && lexer->lookahead
                     && !iswspace(lexer->lookahead)
-                    && !iswpunct(lexer->lookahead))
-            ) {
-                lexer->mark_end(lexer);
+                    && !iswpunct(lexer->lookahead))) {
                 lexer->result_symbol = last_token = LINK_MODIFIER;
                 return true;
+            } else {
+                lexer->result_symbol = last_token = PUNC;
+                return true;
             }
-            return false;
         }
 
         const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
         if (lexer->lookahead == '|') {
             advance();
+            lexer->mark_end(lexer);
             const auto attached_mod = attached_modifier_lookup.find(lexer->lookahead);
             if (attached_mod != attached_modifier_lookup.end()) {
                 const TokenType FREE_CLOSE_MOD = (TokenType)(attached_mod->second + 3);
@@ -165,6 +167,8 @@ struct Scanner {
                     return true;
                 }
             }
+            lexer->result_symbol = last_token = PUNC;
+            return true;
         } else if (attached_mod != attached_modifier_lookup.end()) {
             const TokenType OPEN_MOD = attached_mod->second;
             const TokenType CLOSE_MOD = (TokenType)(OPEN_MOD + 1);
@@ -217,12 +221,15 @@ struct Scanner {
                 lexer->result_symbol = last_token = OPEN_MOD;
                 return true;
             } else if (valid_symbols[PUNC]) {
+                // return PUNC for fail_close or fail_open
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = PUNC;
                 return true;
             }
             return false;
         }
+
+        // WORD
         const bool found_punc = lexer->lookahead && iswpunct(lexer->lookahead);
         if (valid_symbols[WORD] && lexer->lookahead && !iswspace(lexer->lookahead) && !found_punc) {
             while (lexer->lookahead && !iswspace(lexer->lookahead) && !iswpunct(lexer->lookahead)) {
@@ -230,6 +237,14 @@ struct Scanner {
             }
             lexer->mark_end(lexer);
             lexer->result_symbol = last_token = WORD;
+            return true;
+        }
+
+        // PUNC
+        if (valid_symbols[PUNC] && found_punc) {
+            advance();
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = PUNC;
             return true;
         }
         return false;

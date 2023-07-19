@@ -4,10 +4,6 @@
     "named": true,
     "subtypes": [
       {
-        "type": "_para_break",
-        "named": false
-      },
-      {
         "type": "paragraph",
         "named": true
       }
@@ -783,6 +779,10 @@
     "named": false
   },
   {
+    "type": "*",
+    "named": false
+  },
+  {
     "type": ",",
     "named": false
   },
@@ -815,15 +815,7 @@
     "named": false
   },
   {
-    "type": "_para_break",
-    "named": false
-  },
-  {
     "type": "_punc",
-    "named": false
-  },
-  {
-    "type": "_whitespace",
     "named": false
   },
   {

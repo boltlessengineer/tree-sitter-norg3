@@ -2,13 +2,19 @@ let newline = choice("\n", "\r", "\r\n");
 let newline_or_eof = choice("\n", "\r", "\r\n", "\0");
 // !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
 
+// const alias = (a, b) => a;
+
 module.exports = grammar({
     name: "norg",
 
     extras: $ => [],
-    externals: ($) => [
-        $.whitespace,
+    externals: $ => [
+        // handle whitespace, word, _open/_close inline mods ourselves to check preceding word character
+        $._whitespace,
+        $._soft_break,
+        $._para_break,
         $.word,
+        $._punc_ch,
 
         $.bold_open,
         $.bold_close,
@@ -58,13 +64,11 @@ module.exports = grammar({
         $.link_modifier,
         $.escape_sequence_prefix,
 
-        $._punc_ch,
-        $._soft_break,
-        $.para_break,
+        $.detached,
 
         $.error_sentinel,
     ],
-    conflicts: ($) => [
+    conflicts: $ => [
         [$.bold, $.mod_conflict],
         [$.italic, $.mod_conflict],
         [$.strikethrough, $.mod_conflict],
@@ -84,12 +88,15 @@ module.exports = grammar({
         $.non_structural,
     ],
     rules: {
-        document: ($) => repeat(
-            $.non_structural,
+        document: $ => repeat(
+            choice(
+                $.non_structural,
+                // $.heading,
+            )
         ),
         non_structural: $ => prec.right(1, choice(
             $.paragraph,
-            alias($.para_break, "_para_break"),
+            $._para_break,
         )),
         paragraph: $ => prec.right(seq(
             repeat1(
@@ -108,13 +115,19 @@ module.exports = grammar({
             choice(
                 $.escape_sequence,
                 alias($.word, "_word"),
-                alias($.whitespace, "_whitespace"),
+                $._whitespace,
                 alias($.punc, "_word"),
                 alias($.mod_conflict, "_word"),
                 // $.punc,
                 // $.mod_conflict,
                 $._attached_modifier,
             ),
+        // heading: $ =>
+        //     seq(
+        //         "*",
+        //         $._whitespace,
+        //         $.paragraph_segment,
+        //     ),
         escape_sequence: $ =>
             seq(
                 $.escape_sequence_prefix,
@@ -123,9 +136,12 @@ module.exports = grammar({
                     alias(choice(/./, newline), $.any_char),
                 ),
             ),
+        // TODO: handle PUNC in grammar.js. to have higher lexer precedence for headings
         punc: $ =>
+            // $._punc_ch,
             choice(
                 $._punc_ch,
+                "*",
                 ".",
                 ",",
                 "<",
@@ -151,9 +167,11 @@ module.exports = grammar({
                     choice(
                         $.escape_sequence,
                         alias($.word, "_word"),
-                        alias($.whitespace, "_whitespace"),
+                        $._whitespace,
                         alias($.punc, "_word"),
                         alias($.mod_conflict, "_word"),
+                        // $.punc,
+                        // $.mod_conflict,
                         $._soft_break,
                     ),
                 ),
@@ -165,9 +183,11 @@ module.exports = grammar({
                         choice(
                             $.escape_sequence,
                             alias($.word, "_word"),
-                            alias($.whitespace, "_whitespace"),
+                            $._whitespace,
                             alias($.punc, "_word"),
                             alias($.mod_conflict, "_word"),
+                            // $.punc,
+                            // $.mod_conflict,
                         ),
                         $._soft_break,
                         prec(1, alias($.escape_sequence_prefix, "_word")),
@@ -252,16 +272,16 @@ function gen_attached_modifier($, kind, verbatim) {
         free_form_content = $._free_form_verbatim_mod_content;
         precedence = 5;
     }
-    return prec.dynamic(precedence, choice(
-        prec.dynamic(precedence + 1, seq(
+    return choice(
+        prec.dynamic(precedence + 2, seq(
             free_open,
-            free_form_content,
+            prec.dynamic(precedence + 1, free_form_content),
             free_close,
         )),
-        seq(
+        prec.dynamic(precedence, seq(
             open,
             content,
             close,
-        )
-    ))
+        ))
+    )
 }
