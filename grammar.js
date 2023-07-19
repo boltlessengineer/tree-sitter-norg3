@@ -14,33 +14,51 @@ module.exports = grammar({
         $.bold_close,
         $.free_bold_open,
         $.free_bold_close,
-        // $.italic_open,
-        // $.italic_close,
-        // $.strikethrough_open,
-        // $.strikethrough_close,
-        // $.underline_open,
-        // $.underline_close,
-        // $.spoiler_open,
-        // $.spoiler_close,
-        // $.superscript_open,
-        // $.superscript_close,
-        // $.subscript_open,
-        // $.subscript_close,
-        // $.inline_comment_open,
-        // $.inline_comment_close,
+        $.italic_open,
+        $.italic_close,
+        $.free_italic_open,
+        $.free_italic_close,
+        $.strikethrough_open,
+        $.strikethrough_close,
+        $.free_strikethrough_open,
+        $.free_strikethrough_close,
+        $.underline_open,
+        $.underline_close,
+        $.free_underline_open,
+        $.free_underline_close,
+        $.spoiler_open,
+        $.spoiler_close,
+        $.free_spoiler_open,
+        $.free_spoiler_close,
+        $.superscript_open,
+        $.superscript_close,
+        $.free_superscript_open,
+        $.free_superscript_close,
+        $.subscript_open,
+        $.subscript_close,
+        $.free_subscript_open,
+        $.free_subscript_close,
+        $.inline_comment_open,
+        $.inline_comment_close,
+        $.free_inline_comment_open,
+        $.free_inline_comment_close,
         $.verbatim_open,
         $.verbatim_close,
         $.free_verbatim_open,
         $.free_verbatim_close,
-        // $.inline_math_open,
-        // $.inline_math_close,
-        // $.inline_macro_open,
-        // $.inline_macro_close,
+        $.inline_math_open,
+        $.inline_math_close,
+        $.free_inline_math_open,
+        $.free_inline_math_close,
+        $.inline_macro_open,
+        $.inline_macro_close,
+        $.free_inline_macro_open,
+        $.free_inline_macro_close,
 
         // $.free_form_mod_open,
         // $.free_form_mod_close,
         $.link_modifier,
-        $.escape_sequence,
+        $.escape_sequence_prefix,
 
         $._punc_ch,
         $._soft_break,
@@ -50,16 +68,16 @@ module.exports = grammar({
     ],
     conflicts: ($) => [
         [$.bold, $.mod_conflict],
-        // [$.italic, $.mod_conflict],
-        // [$.strikethrough, $.mod_conflict],
-        // [$.underline, $.mod_conflict],
-        // [$.spoiler, $.mod_conflict],
-        // [$.superscript, $.mod_conflict],
-        // [$.subscript, $.mod_conflict],
-        // [$.inline_comment, $.mod_conflict],
+        [$.italic, $.mod_conflict],
+        [$.strikethrough, $.mod_conflict],
+        [$.underline, $.mod_conflict],
+        [$.spoiler, $.mod_conflict],
+        [$.superscript, $.mod_conflict],
+        [$.subscript, $.mod_conflict],
+        [$.inline_comment, $.mod_conflict],
         [$.verbatim, $.mod_conflict],
-        // [$.inline_math, $.mod_conflict],
-        // [$.inline_macro, $.mod_conflict],
+        [$.inline_math, $.mod_conflict],
+        [$.inline_macro, $.mod_conflict],
         [$._attached_modifier, $.mod_conflict],
         [$._attached_modifier],
     ],
@@ -99,6 +117,14 @@ module.exports = grammar({
             // $.mod_conflict,
             $._attached_modifier,
         ),
+        escape_sequence: $ => seq(
+            $.escape_sequence_prefix,
+            field(
+                "token",
+                // TODO: check if working with newline too
+                alias(/./, $.any_char),
+            ),
+        ),
         punc: $ => choice(
             $._punc_ch,
             ".",
@@ -109,7 +135,7 @@ module.exports = grammar({
             ")",
             "\\",
             ":",
-            "|",
+            "|"
         ),
         _attached_mod_content: $ =>
             prec.right(
@@ -145,7 +171,7 @@ module.exports = grammar({
                             alias($.mod_conflict, "_word"),
                         ),
                         $._soft_break,
-                        prec(1, alias($.escape_sequence, "_word")),
+                        prec(1, alias($.escape_sequence_prefix, "_word")),
                     )
                 )
             ),
@@ -154,16 +180,16 @@ module.exports = grammar({
                 optional($.link_modifier),
                 choice(
                     $.bold,
-                    // $.italic,
-                    // $.strikethrough,
-                    // $.underline,
-                    // $.spoiler,
-                    // $.superscript,
-                    // $.subscript,
-                    // $.inline_comment,
+                    $.italic,
+                    $.strikethrough,
+                    $.underline,
+                    $.spoiler,
+                    $.superscript,
+                    $.subscript,
+                    $.inline_comment,
                     $.verbatim,
-                    // $.inline_math,
-                    // $.inline_macro,
+                    $.inline_math,
+                    $.inline_macro,
                 ),
                 optional($.link_modifier),
             ),
@@ -171,50 +197,60 @@ module.exports = grammar({
             alias(
             choice(
                 $.bold_open,
-                $.free_bold_open,
-                // $.italic_open,
-                // $.strikethrough_open,
-                // $.underline_open,
-                // $.spoiler_open,
-                // $.superscript_open,
-                // $.subscript_open,
-                // $.inline_comment_open,
+                $.italic_open,
+                $.strikethrough_open,
+                $.underline_open,
+                $.spoiler_open,
+                $.superscript_open,
+                $.subscript_open,
+                $.inline_comment_open,
                 $.verbatim_open,
+                $.inline_math_open,
+                $.inline_macro_open,
+                $.free_bold_open,
+                $.free_italic_open,
+                $.free_strikethrough_open,
+                $.free_underline_open,
+                $.free_spoiler_open,
+                $.free_superscript_open,
+                $.free_subscript_open,
+                $.free_inline_comment_open,
                 $.free_verbatim_open,
-                // $.inline_math_open,
-                // $.inline_macro_open,
+                $.free_inline_math_open,
+                $.free_inline_macro_open,
                 $.link_modifier,
                 // $.free_form_mod_open,
             ),
-                "_punc"),
+            "_punc"),
         bold: $ => gen_attached_modifier($, "bold", false),
-        // italic: $ => gen_attached_modifier($, "italic", false),
-        // strikethrough: $ => gen_attached_modifier($, "strikethrough", false),
-        // underline: $ => gen_attached_modifier($, "underline", false),
-        // spoiler: $ => gen_attached_modifier($, "spoiler", false),
-        // superscript: $ => gen_attached_modifier($, "superscript", false),
-        // subscript: $ => gen_attached_modifier($, "subscript", false),
-        // inline_comment: $ => gen_attached_modifier($, "inline_comment", false),
+        italic: $ => gen_attached_modifier($, "italic", false),
+        strikethrough: $ => gen_attached_modifier($, "strikethrough", false),
+        underline: $ => gen_attached_modifier($, "underline", false),
+        spoiler: $ => gen_attached_modifier($, "spoiler", false),
+        superscript: $ => gen_attached_modifier($, "superscript", false),
+        subscript: $ => gen_attached_modifier($, "subscript", false),
+        inline_comment: $ => gen_attached_modifier($, "inline_comment", false),
         verbatim: $ => gen_attached_modifier($, "verbatim", true),
-        // inline_math: $ => gen_attached_modifier($, "inline_math", true),
-        // inline_macro: $ => gen_attached_modifier($, "inline_macro", true),
+        inline_math: $ => gen_attached_modifier($, "inline_math", true),
+        inline_macro: $ => gen_attached_modifier($, "inline_macro", true),
     },
 });
 
 function gen_attached_modifier($, kind, verbatim) {
-    // let open = alias($[kind + "_open"], "_open");
-    // let close = alias($[kind + "_close"], "_close");
-    let open = $[kind + "_open"];
-    let close = $[kind + "_close"];
-    let free_open = $["free_" + kind + "_open"];
-    let free_close = $["free_" + kind + "_close"];
+    let open = alias($[kind + "_open"], "_open");
+    let close = alias($[kind + "_close"], "_close");
+    let free_open = alias($["free_" + kind + "_open"], $.free_form_open);
+    let free_close = alias($["free_" + kind + "_close"], $.free_form_close);
+    // let open = $[kind + "_open"];
+    // let close = $[kind + "_close"];
+    // let free_open = $["free_" + kind + "_open"];
+    // let free_close = $["free_" + kind + "_close"];
     let content = $._attached_mod_content;
     let free_form_content = $._attached_mod_content;
     let precedence = 2;
 
     if (verbatim) {
         content = $._verbatim_paragraph_content;
-        // TODO: implement verbatim free form
         free_form_content = $._free_form_verbatim_mod_content;
         precedence = 5;
     }

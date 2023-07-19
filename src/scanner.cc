@@ -18,31 +18,47 @@ enum TokenType : char {
     BOLD_CLOSE,
     FREE_BOLD_OPEN,
     FREE_BOLD_CLOSE,
-    // ITALIC_OPEN,
-    // ITALIC_CLOSE,
-    // STRIKETHROUGH_OPEN,
-    // STRIKETHROUGH_CLOSE,
-    // UNDERLINE_OPEN,
-    // UNDERLINE_CLOSE,
-    // SPOILER_OPEN,
-    // SPOILER_CLOSE,
-    // SUPERSCRIPT_OPEN,
-    // SUPERSCRIPT_CLOSE,
-    // SUBSCRIPT_OPEN,
-    // SUBSCRIPT_CLOSE,
-    // INLINE_COMMENT_OPEN,
-    // INLINE_COMMENT_CLOSE,
+    ITALIC_OPEN,
+    ITALIC_CLOSE,
+    FREE_ITALIC_OPEN,
+    FREE_ITALIC_CLOSE,
+    STRIKETHROUGH_OPEN,
+    STRIKETHROUGH_CLOSE,
+    FREE_STRIKETHROUGH_OPEN,
+    FREE_STRIKETHROUGH_CLOSE,
+    UNDERLINE_OPEN,
+    UNDERLINE_CLOSE,
+    FREE_UNDERLINE_OPEN,
+    FREE_UNDERLINE_CLOSE,
+    SPOILER_OPEN,
+    SPOILER_CLOSE,
+    FREE_SPOILER_OPEN,
+    FREE_SPOILER_CLOSE,
+    SUPERSCRIPT_OPEN,
+    SUPERSCRIPT_CLOSE,
+    FREE_SUPERSCRIPT_OPEN,
+    FREE_SUPERSCRIPT_CLOSE,
+    SUBSCRIPT_OPEN,
+    SUBSCRIPT_CLOSE,
+    FREE_SUBSCRIPT_OPEN,
+    FREE_SUBSCRIPT_CLOSE,
+    INLINE_COMMENT_OPEN,
+    INLINE_COMMENT_CLOSE,
+    FREE_INLINE_COMMENT_OPEN,
+    FREE_INLINE_COMMENT_CLOSE,
     VERBATIM_OPEN,
     VERBATIM_CLOSE,
     FREE_VERBATIM_OPEN,
     FREE_VERBATIM_CLOSE,
-    // INLINE_MATH_OPEN,
-    // INLINE_MATH_CLOSE,
-    // INLINE_MACRO_OPEN,
-    // INLINE_MACRO_CLOSE,
+    INLINE_MATH_OPEN,
+    INLINE_MATH_CLOSE,
+    FREE_INLINE_MATH_OPEN,
+    FREE_INLINE_MATH_CLOSE,
+    INLINE_MACRO_OPEN,
+    INLINE_MACRO_CLOSE,
+    FREE_INLINE_MACRO_OPEN,
+    FREE_INLINE_MACRO_CLOSE,
 
-    // FREE_FORM_MOD_OPEN,
-    // FREE_FORM_MOD_CLOSE,
     LINK_MODIFIER,
     ESCAPE_SEQUENCE,
 
@@ -63,11 +79,10 @@ bool is_token_attached_mod(TokenType token, bool is_close) {
 struct Scanner {
     TSLexer* lexer;
     const std::unordered_map<int32_t, TokenType> attached_modifier_lookup = {
-        {'*', BOLD_OPEN}, //       {'/', ITALIC_OPEN},       {'-', STRIKETHROUGH_OPEN},
-        // {'_', UNDERLINE_OPEN},   {'!', SPOILER_OPEN},
-        {'`', VERBATIM_OPEN},
-        // {'^', SUPERSCRIPT_OPEN}, {',', SUBSCRIPT_OPEN},    {'%', INLINE_COMMENT_OPEN},
-        // {'$', INLINE_MATH_OPEN}, {'&', INLINE_MACRO_OPEN},
+        {'*', BOLD_OPEN},        {'/', ITALIC_OPEN},       {'-', STRIKETHROUGH_OPEN},
+        {'_', UNDERLINE_OPEN},   {'!', SPOILER_OPEN},      {'`', VERBATIM_OPEN},
+        {'^', SUPERSCRIPT_OPEN}, {',', SUBSCRIPT_OPEN},    {'%', INLINE_COMMENT_OPEN},
+        {'$', INLINE_MATH_OPEN}, {'&', INLINE_MACRO_OPEN},
     };
 
     std::bitset<COUNT> active_mods;
@@ -107,7 +122,6 @@ struct Scanner {
         if (valid_symbols[ESCAPE_SEQUENCE] && lexer->lookahead == '\\') {
             advance();
             if (lexer->lookahead) {
-                advance();
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = ESCAPE_SEQUENCE;
                 return true;
@@ -174,8 +188,8 @@ struct Scanner {
                     && !active_mods[attached_mod->second]
                     && lexer->lookahead == '|') {
                 // _FREE_OPEN
+                advance();
                 active_mods[attached_mod->second] = true;
-                // free_active_mods[attached_mod->second] = true;
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = FREE_OPEN_MOD;
                 return true;
