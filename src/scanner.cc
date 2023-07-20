@@ -69,8 +69,8 @@ enum TokenType : char {
     COUNT
 };
 
-bool is_token_attached_mod(TokenType token, bool is_close) {
-    return token >= BOLD_OPEN && token < LINK_MODIFIER && ((token % 2 == BOLD_CLOSE % 2) == is_close);
+bool was_attached_close_mod(TokenType token) {
+    return token >= BOLD_OPEN && token < LINK_MODIFIER && (token % 2 == BOLD_CLOSE % 2);
 }
 
 struct Scanner {
@@ -96,7 +96,7 @@ struct Scanner {
 
         if (valid_symbols[PUNC_END] && last_token != PUNC_END) {
             lexer->mark_end(lexer);
-            lexer->result_symbol = last_token = PUNC_END;
+            last_token = PUNC_END;
             return true;
         }
 
@@ -125,7 +125,7 @@ struct Scanner {
             lexer->mark_end(lexer);
             if (
                 (last_token == WORD && !iswspace(lexer->lookahead))
-                || (is_token_attached_mod(last_token, true)
+                || (was_attached_close_mod(last_token)
                     && lexer->lookahead
                     && !iswspace(lexer->lookahead)
                     && !iswpunct(lexer->lookahead))) {

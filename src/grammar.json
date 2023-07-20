@@ -13,43 +13,35 @@
           {
             "type": "SYMBOL",
             "name": "heading"
-          },
-          {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "STRING",
-                "value": "\n"
-              },
-              {
-                "type": "STRING",
-                "value": "\r"
-              },
-              {
-                "type": "STRING",
-                "value": "\r\n"
-              },
-              {
-                "type": "STRING",
-                "value": "\u0000"
-              }
-            ]
           }
         ]
       }
     },
     "non_structural": {
-      "type": "PREC_RIGHT",
-      "value": 1,
-      "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "SYMBOL",
-            "name": "paragraph"
-          }
-        ]
-      }
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "paragraph"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "\n"
+            },
+            {
+              "type": "STRING",
+              "value": "\r"
+            },
+            {
+              "type": "STRING",
+              "value": "\r\n"
+            }
+          ]
+        }
+      ]
     },
     "paragraph": {
       "type": "PREC_RIGHT",
@@ -118,10 +110,10 @@
       "type": "REPEAT1",
       "content": {
         "type": "SYMBOL",
-        "name": "_paragraph_element"
+        "name": "_paragraph_inner"
       }
     },
-    "_paragraph_element": {
+    "_paragraph_inner": {
       "type": "CHOICE",
       "members": [
         {
@@ -129,35 +121,20 @@
           "name": "escape_sequence"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "word"
-          },
-          "named": false,
-          "value": "_word"
+          "type": "SYMBOL",
+          "name": "_word"
         },
         {
           "type": "SYMBOL",
           "name": "_whitespace"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "punc"
-          },
-          "named": false,
-          "value": "_word"
+          "type": "SYMBOL",
+          "name": "_punc"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "mod_conflict"
-          },
-          "named": false,
-          "value": "_word"
+          "type": "SYMBOL",
+          "name": "_mod_conflict"
         },
         {
           "type": "SYMBOL",
@@ -260,7 +237,7 @@
         }
       ]
     },
-    "punc": {
+    "_punc": {
       "type": "SEQ",
       "members": [
         {
@@ -478,7 +455,7 @@
             "type": "REPEAT1",
             "content": {
               "type": "SYMBOL",
-              "name": "_paragraph_element"
+              "name": "_paragraph_inner"
             }
           },
           {
@@ -507,7 +484,7 @@
                   "type": "REPEAT1",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "_paragraph_element"
+                    "name": "_paragraph_inner"
                   }
                 }
               ]
@@ -524,35 +501,20 @@
           "name": "escape_sequence"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "word"
-          },
-          "named": false,
-          "value": "_word"
+          "type": "SYMBOL",
+          "name": "_word"
         },
         {
           "type": "SYMBOL",
           "name": "_whitespace"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "punc"
-          },
-          "named": false,
-          "value": "_word"
+          "type": "SYMBOL",
+          "name": "_punc"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "mod_conflict"
-          },
-          "named": false,
-          "value": "_word"
+          "type": "SYMBOL",
+          "name": "_mod_conflict"
         }
       ]
     },
@@ -616,35 +578,20 @@
               "type": "CHOICE",
               "members": [
                 {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "word"
-                  },
-                  "named": false,
-                  "value": "_word"
+                  "type": "SYMBOL",
+                  "name": "_word"
                 },
                 {
                   "type": "SYMBOL",
                   "name": "_whitespace"
                 },
                 {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "punc"
-                  },
-                  "named": false,
-                  "value": "_word"
+                  "type": "SYMBOL",
+                  "name": "_punc"
                 },
                 {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "mod_conflict"
-                  },
-                  "named": false,
-                  "value": "_word"
+                  "type": "SYMBOL",
+                  "name": "_mod_conflict"
                 }
               ]
             },
@@ -747,7 +694,7 @@
         }
       ]
     },
-    "mod_conflict": {
+    "_mod_conflict": {
       "type": "ALIAS",
       "content": {
         "type": "CHOICE",
@@ -1591,51 +1538,51 @@
   "conflicts": [
     [
       "bold",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "italic",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "strikethrough",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "underline",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "spoiler",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "superscript",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "subscript",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "inline_comment",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "verbatim",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "inline_math",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "inline_macro",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "_attached_modifier",
-      "mod_conflict"
+      "_mod_conflict"
     ],
     [
       "_attached_modifier"
@@ -1649,7 +1596,7 @@
     },
     {
       "type": "SYMBOL",
-      "name": "word"
+      "name": "_word"
     },
     {
       "type": "SYMBOL",

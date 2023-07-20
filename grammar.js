@@ -11,7 +11,7 @@ module.exports = grammar({
     externals: $ => [
         // handle whitespace, word, _open/_close inline mods ourselves to check preceding word character
         $._whitespace,
-        $.word,
+        $._word,
 
         $.bold_open,
         $.bold_close,
@@ -66,18 +66,18 @@ module.exports = grammar({
         $.error_sentinel,
     ],
     conflicts: $ => [
-        [$.bold, $.mod_conflict],
-        [$.italic, $.mod_conflict],
-        [$.strikethrough, $.mod_conflict],
-        [$.underline, $.mod_conflict],
-        [$.spoiler, $.mod_conflict],
-        [$.superscript, $.mod_conflict],
-        [$.subscript, $.mod_conflict],
-        [$.inline_comment, $.mod_conflict],
-        [$.verbatim, $.mod_conflict],
-        [$.inline_math, $.mod_conflict],
-        [$.inline_macro, $.mod_conflict],
-        [$._attached_modifier, $.mod_conflict],
+        [$.bold, $._mod_conflict],
+        [$.italic, $._mod_conflict],
+        [$.strikethrough, $._mod_conflict],
+        [$.underline, $._mod_conflict],
+        [$.spoiler, $._mod_conflict],
+        [$.superscript, $._mod_conflict],
+        [$.subscript, $._mod_conflict],
+        [$.inline_comment, $._mod_conflict],
+        [$.verbatim, $._mod_conflict],
+        [$.inline_math, $._mod_conflict],
+        [$.inline_macro, $._mod_conflict],
+        [$._attached_modifier, $._mod_conflict],
         [$._attached_modifier],
     ],
     inlines: $ => [],
@@ -89,12 +89,12 @@ module.exports = grammar({
             choice(
                 $.non_structural,
                 $.heading,
-                newline_or_eof,
             )
         ),
-        non_structural: $ => prec.right(1, choice(
+        non_structural: $ => choice(
             $.paragraph,
-        )),
+            newline,
+        ),
         paragraph: $ => prec.right(seq(
             $.paragraph_segment,
             repeat(
@@ -105,14 +105,14 @@ module.exports = grammar({
             ),
             newline_or_eof,
         )),
-        paragraph_segment: $ => repeat1($._paragraph_element),
-        _paragraph_element: $ =>
+        paragraph_segment: $ => repeat1($._paragraph_inner),
+        _paragraph_inner: $ =>
             choice(
                 $.escape_sequence,
-                alias($.word, "_word"),
+                $._word,
                 $._whitespace,
-                alias($.punc, "_word"),
-                alias($.mod_conflict, "_word"),
+                $._punc,
+                $._mod_conflict,
                 $._attached_modifier,
             ),
         heading: $ =>
@@ -132,7 +132,7 @@ module.exports = grammar({
                     alias(choice(/./, newline), $.any_char),
                 ),
             ),
-        punc: $ => seq(
+        _punc: $ => seq(
             choice(
                 // combine all repeated token to ignore repeated attached modifiers
                 token(prec.right(repeat1("*"))),
@@ -159,21 +159,21 @@ module.exports = grammar({
         ),
         _attached_mod_content: $ =>
             prec.right(seq(
-                repeat1($._paragraph_element),
+                repeat1($._paragraph_inner),
                 repeat(
                     seq(
                         newline,
-                        repeat1($._paragraph_element),
+                        repeat1($._paragraph_inner),
                     )
                 ),
             )),
         _verbatim_paragraph_element: $ =>
             choice(
                 $.escape_sequence,
-                alias($.word, "_word"),
+                $._word,
                 $._whitespace,
-                alias($.punc, "_word"),
-                alias($.mod_conflict, "_word"),
+                $._punc,
+                $._mod_conflict,
             ),
         _verbatim_paragraph_content: $ =>
             prec.right(seq(
@@ -191,10 +191,10 @@ module.exports = grammar({
                     choice(
                         choice(
                             // $.escape_sequence,
-                            alias($.word, "_word"),
+                            $._word,
                             $._whitespace,
-                            alias($.punc, "_word"),
-                            alias($.mod_conflict, "_word"),
+                            $._punc,
+                            $._mod_conflict,
                         ),
                         newline,
                     )
@@ -218,7 +218,7 @@ module.exports = grammar({
                 ),
                 optional($.link_modifier),
             ),
-        mod_conflict: $ =>
+        _mod_conflict: $ =>
             alias(
                 choice(
                     $.bold_open,

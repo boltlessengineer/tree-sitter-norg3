@@ -4,15 +4,22 @@
     "named": true,
     "subtypes": [
       {
+        "type": "\n",
+        "named": false
+      },
+      {
+        "type": "\r",
+        "named": false
+      },
+      {
+        "type": "\r\n",
+        "named": false
+      },
+      {
         "type": "paragraph",
         "named": true
       }
     ]
-  },
-  {
-    "type": "_word",
-    "named": false,
-    "fields": {}
   },
   {
     "type": "bold",
@@ -847,10 +854,6 @@
   },
   {
     "type": "_punc",
-    "named": false
-  },
-  {
-    "type": "_word",
     "named": false
   },
   {
