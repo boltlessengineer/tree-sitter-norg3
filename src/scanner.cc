@@ -76,7 +76,7 @@ bool was_attached_close_mod(TokenType token) {
 
 struct Scanner {
     TSLexer* lexer;
-    const std::unordered_map<int32_t, TokenType> attached_modifier_lookup = {
+    const std::unordered_map<int32_t, TokenType> lookup = {
         {'*', BOLD_OPEN},        {'/', ITALIC_OPEN},       {'-', STRIKETHROUGH_OPEN},
         {'_', UNDERLINE_OPEN},   {'!', SPOILER_OPEN},      {'`', VERBATIM_OPEN},
         {'^', SUPERSCRIPT_OPEN}, {',', SUBSCRIPT_OPEN},    {'%', INLINE_COMMENT_OPEN},
@@ -85,18 +85,17 @@ struct Scanner {
 
     // HACK: fix this to use less space
     std::bitset<COUNT> active_mods;
-    size_t cache_idx = 0;
-    std::vector<char> cache;
+    char cache;
 
     TokenType last_token = WHITESPACE;
 
+    bool is_word(char c) {
+        return !iswspace(c) && !iswpunct(c);
+    }
+
     bool scan(const bool *valid_symbols) {
-        cache.clear();
-        cache_idx = 0;
         if (lexer->eof(lexer))
             return false;
-
-        cache.push_back(lexer->lookahead);
 
         if (lexer->get_column(lexer) == 0)
             last_token = WHITESPACE;
@@ -107,10 +106,12 @@ struct Scanner {
             return true;
         }
 
+        cache = lexer->lookahead;
+        advance();
+
         // ESCAPE SEQUENCE
-        if (valid_symbols[ESCAPE_SEQUENCE] && lookahead() == '\\') {
-            advance();
-            if (lookahead()) {
+        if (valid_symbols[ESCAPE_SEQUENCE] && cache == '\\') {
+            if (lexer->lookahead) {
                 lexer->mark_end(lexer);
                 lexer->result_symbol = last_token = ESCAPE_SEQUENCE;
                 return true;
@@ -118,106 +119,19 @@ struct Scanner {
             return false;
         }
         // WHITESPACE
-        if (iswblank(lookahead())) {
-            do {
+        if (iswblank(cache)) {
+            while (iswblank(lexer->lookahead)) {
                 advance();
-            } while (iswblank(lookahead()));
+            }
             lexer->mark_end(lexer);
             lexer->result_symbol = last_token = WHITESPACE;
             return true;
         }
 
-        if (valid_symbols[LINK_MODIFIER] && lookahead() == ':') {
-            advance();
-            lexer->mark_end(lexer);
-            if (
-                (last_token == WORD && !iswspace(lookahead()))
-                || (was_attached_close_mod(last_token)
-                    && lookahead()
-                    && !iswspace(lookahead())
-                    && !iswpunct(lookahead()))) {
-                lexer->result_symbol = last_token = LINK_MODIFIER;
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        const auto attached_mod = attached_modifier_lookup.find(lookahead());
-        if (lookahead() == '|') {
-            advance();
-            const auto attached_mod = attached_modifier_lookup.find(lookahead());
-            if (attached_mod != attached_modifier_lookup.end()) {
-                const TokenType FREE_CLOSE_MOD = (TokenType)(attached_mod->second + 3);
-                advance();
-                if (valid_symbols[FREE_CLOSE_MOD]
-                    && (!lookahead()
-                        || iswspace(lookahead())
-                        || lookahead() == '\n'
-                        || lookahead() == '\r'
-                        || iswpunct(lookahead()))) {
-                    // _FREE_CLOSE
-                    active_mods[attached_mod->second] = false;
-                    lexer->mark_end(lexer);
-                    lexer->result_symbol = last_token = FREE_CLOSE_MOD;
-                    return true;
-                }
-            }
-            return false;
-        } else if (attached_mod != attached_modifier_lookup.end()) {
-            const TokenType OPEN_MOD = attached_mod->second;
-            const TokenType CLOSE_MOD = (TokenType)(OPEN_MOD + 1);
-            const TokenType FREE_OPEN_MOD = (TokenType)(OPEN_MOD + 2);
-            if (!valid_symbols[OPEN_MOD] && !valid_symbols[CLOSE_MOD]) 
-                // no valid attached modifier in current state
-                return false;
-
-            advance();
-
-            if (lookahead() == attached_mod->first) {
-                // **
-                return false;
-            }
-
-            if (valid_symbols[FREE_OPEN_MOD]
-                    && !active_mods[attached_mod->second]
-                    && lookahead() == '|') {
-                // _FREE_OPEN
-                advance();
-                active_mods[attached_mod->second] = true;
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = FREE_OPEN_MOD;
-                return true;
-            } else if (valid_symbols[CLOSE_MOD]
-                    && last_token != WHITESPACE
-                    && (!lookahead()
-                        || iswspace(lookahead())
-                        || lookahead() == '\n'
-                        || lookahead() == '\r'
-                        || iswpunct(lookahead()))) {
-                // _CLOSE
-                active_mods[attached_mod->second] = false;
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = CLOSE_MOD;
-                return true;
-            } else if (valid_symbols[OPEN_MOD]
-                    && last_token != WORD
-                    && !active_mods[attached_mod->second]
-                    && lookahead()
-                    && !iswspace(lookahead())) {
-                // _OPEN
-                active_mods[attached_mod->second] = true;
-                lexer->mark_end(lexer);
-                lexer->result_symbol = last_token = OPEN_MOD;
-                return true;
-            }
-            return false;
-        }
-
         // WORD
-        const bool found_punc = lookahead() && iswpunct(lookahead());
-        if (valid_symbols[WORD] && lookahead() && !iswspace(lookahead()) && !found_punc) {
-            while (lookahead() && !iswspace(lookahead()) && !iswpunct(lookahead())) {
+        const bool found_punc = cache && iswpunct(cache);
+        if (valid_symbols[WORD] && cache && is_word(cache)) {
+            while (lexer->lookahead && !iswspace(lexer->lookahead) && !iswpunct(lexer->lookahead)) {
                 advance();
             }
             lexer->mark_end(lexer);
@@ -225,17 +139,59 @@ struct Scanner {
             return true;
         }
 
+        if (valid_symbols[LINK_MODIFIER] && last_token == WORD && cache == ':' && !iswspace(lexer->lookahead)) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = LINK_MODIFIER;
+            return true;
+        } else if (valid_symbols[LINK_MODIFIER] && was_attached_close_mod(last_token) && cache == ':' && lexer->lookahead && is_word(lexer->lookahead)) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = LINK_MODIFIER;
+            return true;
+        }
+
+        const auto n_attached_mod = lookup.find(lexer->lookahead);
+        if (cache == '|' && (n_attached_mod != lookup.end()) && valid_symbols[n_attached_mod->second + 3]) {
+            advance();
+            if (!lexer->lookahead || (!is_word(lexer->lookahead) && lexer->lookahead != n_attached_mod->first)) {
+                lexer->mark_end(lexer);
+                lexer->result_symbol = last_token = (TokenType)(n_attached_mod->second + 3);
+                active_mods[n_attached_mod->second] = false;
+                return true;
+            }
+            return false;
+        }
+        const auto attached_mod = lookup.find(cache);
+        if (attached_mod != lookup.end() && valid_symbols[attached_mod->second + 2] && !active_mods[attached_mod->second] && last_token != WORD && lexer->lookahead == '|') {
+            // _FREE_OPEN
+            // (non word) ['*', '|']
+            advance();
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = (TokenType)(attached_mod->second + 2);
+            active_mods[attached_mod->second] = true;
+            return true;
+        }
+        if (attached_mod != lookup.end() && valid_symbols[attached_mod->second + 1] && active_mods[attached_mod->second] && last_token != WHITESPACE && (!lexer->lookahead || (!is_word(lexer->lookahead) && lexer->lookahead != attached_mod->first))) {
+            // _CLOSE
+            // (-ws) ["*", -(word | "*")]
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = (TokenType)(attached_mod->second + 1);
+            active_mods[attached_mod->second] = false;
+            return true;
+        }
+        if (attached_mod != lookup.end() && valid_symbols[attached_mod->second] && !active_mods[attached_mod->second] && last_token != WORD && lexer->lookahead && !iswspace(lexer->lookahead) && (lexer->lookahead != attached_mod->first)) {
+            // _OPEN
+            // (-word) ["*", -(ws | "*")]
+            lexer->mark_end(lexer);
+            lexer->result_symbol = last_token = attached_mod->second;
+            active_mods[attached_mod->second] = true;
+            return true;
+        }
+
         return false;
     }
 
-    char lookahead() {
-        return cache[cache_idx];
-    }
     void advance() {
-        if (cache.size() <= ++cache_idx) {
-            lexer->advance(lexer, false);
-            cache.push_back(lexer->lookahead);
-        }
+        lexer->advance(lexer, false);
     }
 };
 
